@@ -1,0 +1,66 @@
+namespace: prometheus
+
+base:
+  defines: runnable
+
+  metadata:
+    name: Prometheus
+    description: Standalone Prometheus monitoring server using the public prom/prometheus image.
+    tags: monitoring, metrics, prometheus
+
+  variables:
+    image-tag:
+      type: string
+      value: latest
+      description: Public prom/prometheus image tag to run.
+    retention-time:
+      type: string
+      value: 15d
+      env: PROMETHEUS_RETENTION_TIME
+      description: Time duration for retaining TSDB blocks on local storage.
+    scrape-interval:
+      type: string
+      value: 15s
+      description: Default interval used by Prometheus when scraping configured targets.
+    evaluation-interval:
+      type: string
+      value: 15s
+      description: Default interval used by Prometheus when evaluating rules.
+
+  containers:
+    prometheus:
+      image: prom/prometheus
+      image-tag: <- $image-tag
+      restart: unless-stopped
+      bash: |
+        /bin/prometheus \
+          --config.file=/etc/prometheus/prometheus.yml \
+          --storage.tsdb.path=/prometheus \
+          --storage.tsdb.retention.time="${PROMETHEUS_RETENTION_TIME:-15d}" \
+          --web.console.libraries=/usr/share/prometheus/console_libraries \
+          --web.console.templates=/usr/share/prometheus/consoles \
+          --web.listen-address=0.0.0.0:9090
+
+  files:
+    prometheus-config:
+      container: prometheus
+      path: /etc/prometheus/prometheus.yml
+      mode: 0644
+      contents: |
+        global:
+          scrape_interval: {{ v "scrape-interval" }}
+          evaluation_interval: {{ v "evaluation-interval" }}
+
+        scrape_configs:
+          - job_name: prometheus
+            static_configs:
+              - targets:
+                  - 127.0.0.1:9090
+
+  services:
+    http:
+      container: prometheus
+      port: 9090
+      protocol: tcp
+      publish: false
+      description: Private Prometheus HTTP API and UI service.

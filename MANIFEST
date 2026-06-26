@@ -1,0 +1,6 @@
+REPO prometheus
+
+LOAD monk/prometheus.yaml
+LOAD monk/prometheus-stack.yaml
+
+ENTRY prometheus/stack

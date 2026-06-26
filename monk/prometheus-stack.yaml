@@ -1,0 +1,71 @@
+namespace: prometheus
+
+stack:
+  defines: runnable
+  inherits: prometheus/base
+
+  metadata:
+    name: Prometheus Stack
+    description: Production-oriented standalone Prometheus stack with persistent TSDB storage and no public service exposure by default.
+    tags: monitoring, metrics, prometheus, stack
+
+  variables:
+    volume-kind:
+      type: string
+      value: local
+      description: Persistent volume kind for the Prometheus TSDB; use a cloud-backed kind when deploying to a cloud target.
+    volume-size:
+      type: int
+      value: 10
+      description: Persistent storage size in GB for Prometheus TSDB data.
+    volume-name:
+      type: string
+      value: prometheus-tsdb
+      description: Persistent volume name for Prometheus TSDB data.
+
+  volumes:
+    data:
+      kind: <- $volume-kind
+      size: <- $volume-size
+      name: <- $volume-name
+
+  containers:
+    prometheus:
+      mounted-volumes:
+        data:
+          path: /prometheus
+
+local:
+  defines: runnable
+  inherits: prometheus/stack
+
+  metadata:
+    name: Prometheus Local
+    description: Local verification flavor that publishes Prometheus on a host port while keeping the production stack private.
+    tags: monitoring, metrics, prometheus, local
+
+  variables:
+    host-port:
+      type: int
+      value: 19090
+      description: Host port used only for local external HTTP verification.
+    volume-name:
+      type: string
+      value: prometheus-local-tsdb
+      description: Persistent local volume name for the local verification flavor.
+
+  services:
+    http:
+      container: prometheus
+      port: 9090
+      protocol: tcp
+      publish: true
+      host-port: <- $host-port
+      description: Prometheus HTTP API and UI service published only by the local verification flavor.
+
+  checks:
+    readiness:
+      code: |
+        http-get("http://localhost:19090/-/ready") empty? not
+      period: 5
+      attempts: 12
