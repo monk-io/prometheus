@@ -60,6 +60,7 @@ local:
       port: 9090
       protocol: tcp
       host-port: <- $host-port
+      publish: true
       description: Prometheus HTTP API and UI service published only by the local verification flavor.
 
   checks:
